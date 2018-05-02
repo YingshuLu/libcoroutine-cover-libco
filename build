@@ -1,0 +1,3 @@
+#!/bin/bash
+gcc -g -o test main.c coroutine.c stack_pool.c -I./
+
