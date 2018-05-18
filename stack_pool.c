@@ -73,7 +73,7 @@ void stack_list_append(stack_list_st* list, stack_st* stk) {
         list->end = stk;
     }
     list->size++;
-    printf("stack list size : %zu\n", list->size);
+    //printf("stack list size : %zu\n", list->size);
     return;
 }
 

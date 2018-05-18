@@ -18,19 +18,18 @@
 #define COROUTINE_STACK_COUNT SET_COROUTINE_STACK_COUNT
 #endif
 
+//define stack pool mode
 #ifndef SHARE_STACK_MODE 
 #define SCHEDULER_STACK_POOL_MODE STACK_POOL_ON_ARRAY
 #else
 #define SCHEDULER_STACK_POOL_MODE SHARE_STACK_MODE
 #endif
 
-__thread scheduler* g_scheduler = NULL;
-
 //coroutine max call stack depth
 #define SCHEDULER_COROUTINE_MAX_SIZE 1024
+#define COROUTINE_SPECIFIC_CAPCITY 128
 
-//define stack pool mode
-
+__thread scheduler* g_scheduler = NULL;
 
 const char* _status_strs[] = { "Ready", "Running", "Suspend", "Dead" };
 
@@ -43,14 +42,20 @@ struct _coroutine {
     cofunc_t func;
     void* iparam;
     void* oparam;    
+    cocb_t cb;
     status_t status;
     
     char* snapshot;
     size_t snapshot_size;
     size_t snapshot_capcity;
 
+    void** spec;
+    size_t spec_size;
+
     ucontext_t context;
+    volatile int hook;
     char inner;
+
 };
 
 struct _scheduler {
@@ -63,6 +68,45 @@ struct _scheduler {
 
 void save_coroutine_stack(coroutine*);
 void coroutine_die();
+
+void coroutine_enable_hook(coroutine *c) {
+    c->hook = 1;
+}
+
+void coroutine_disable_hook(coroutine *c) {
+    c->hook = 0;
+}
+
+int coroutine_hooked(coroutine *c) {
+    return c->hook == 1;
+}
+
+void coroutine_set_callback(coroutine *c, cocb_t cb) {
+    if(c && cb) c->cb = cb;
+}
+
+int coroutine_create_specific_key() {
+    coroutine* curr = current_coroutine();
+    if(!curr->spec) {
+        curr->spec = malloc(sizeof(void*) * COROUTINE_SPECIFIC_CAPCITY);
+        curr->spec_size = 0;
+    }
+    if(curr->spec_size < COROUTINE_SPECIFIC_CAPCITY) return (curr->spec_size)++;
+    return -1;
+}
+
+int coroutine_set_specific(int key, void* value) {
+    coroutine* curr = current_coroutine();
+    if(!(key >= 0 && key < curr->spec_size) && !(curr->spec)) return -1;
+    (curr->spec)[key] = value;
+    return 0;
+}
+
+void* coroutine_get_specific(int key) {
+    coroutine* curr = current_coroutine();
+    if(!(key >= 0 && key < curr->spec_size) && !(curr->spec)) return NULL;
+    return (curr->spec)[key];
+}
 
 scheduler* current_scheduler() {
     if(g_scheduler) return g_scheduler;
@@ -88,6 +132,9 @@ coroutine* previous_coroutine() {
 //unless current coroutine is main, and trying to destory scheduler
 void free_coroutine(coroutine* c) {
     if(!c) return;
+    //give up stack owner 
+    c->stack->occupy = NULL;
+    c->stack->shared = 1;
     free(c->snapshot);
     free(c);
 }
@@ -134,16 +181,27 @@ coroutine* reset_coroutine(scheduler* shed, coroutine* c, cofunc_t f, void* ip, 
     c->oparam = op;
 
     c->status = COROUTINE_READY;
+    if(c->snapshot) free(c->snapshot);
     c->snapshot = NULL;
     c->snapshot_size = 0;
     c->snapshot_capcity = 0;
-    
+    c->cb = NULL;
+
+    //give up stack owner 
+    if(c->stack) {
+        c->stack->occupy = NULL;
+        c->stack->shared = 1;
+    }
+
     c->stack = NULL;
     if(shed) c->stack = alloc_stack(shed->spool);
     DBG_LOG("coroutine: %p, stack: %p\n", c, c->stack);
     c->stack_sp = NULL;
 
     c->inner = 0;
+    c->hook = 0;
+
+    if(!c->spec) c->spec_size = 0;
     return c;
 }
 
@@ -220,9 +278,7 @@ void _proxy_func_(void* c, void* p) {
 void coroutine_proxy(coroutine* curr, coroutine* pendding) {
     assert(pendding);
     coroutine* proxy = create_coroutine(NULL, _proxy_func_, (void*) curr, (void*) pendding);
-    proxy->stack = alloc_isolate_stack(current_scheduler()->spool, 256);
     proxy->inner = 1;
-    if(proxy->stack == pendding->stack) { realloc_coroutine_stack(proxy); }
     coroutine_resume(proxy);
 }
 
@@ -288,6 +344,7 @@ void coroutine_yield() {
 }
 
 void coroutine_die() {
+    if(current_coroutine()->cb) current_coroutine()->cb();
     coroutine* pendding = previous_coroutine();
     coroutine* curr = pop_coroutine();
 
@@ -299,15 +356,15 @@ void coroutine_die() {
     }
 
     curr->status = COROUTINE_DEAD;
-    curr->stack->occupy = NULL;
     //give up stack owner 
+    curr->stack->occupy = NULL;
     curr->stack->shared = 1;
 
 #ifdef AUTO_FREE_COROUTINE
     free_coroutine(curr);
-#endif
-
-    //free inner coroutine
+#else
+    //only free inner coroutine
     if(curr->inner) free_coroutine(curr);
+#endif
     setcontext(&pendding->context);
 }

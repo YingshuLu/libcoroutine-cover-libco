@@ -1,0 +1,17 @@
+!_TAG_FILE_FORMAT	2	/extended format; --format=1 will not append ;" to lines/
+!_TAG_FILE_SORTED	1	/0=unsorted, 1=sorted, 2=foldcase/
+!_TAG_PROGRAM_AUTHOR	Darren Hiebert	/dhiebert@users.sourceforge.net/
+!_TAG_PROGRAM_NAME	Exuberant Ctags	//
+!_TAG_PROGRAM_URL	http://ctags.sourceforge.net	/official site/
+!_TAG_PROGRAM_VERSION	5.9~svn20110310	//
+HOOK_H_	hook.h	2;"	d
+HOOK_SYS_CALL	hook.c	9;"	d	file:
+_GNU_SOURCE	hook.c	1;"	d	file:
+disable_hook	hook.c	/^void disable_hook() { hooked = 0; }$/;"	f
+enable_hook	hook.c	/^void enable_hook() { hooked = 1; }$/;"	f
+hook_malloc_pfn	hook.c	/^static malloc_pfn_t hook_malloc_pfn = 0;$/;"	v	file:
+hooked	hook.c	/^volatile int hooked = 0;$/;"	v
+is_hooked	hook.c	/^int is_hooked() { return hooked; }$/;"	f
+main	test.c	/^int main() {$/;"	f
+malloc	hook.c	/^void* malloc(size_t size) {$/;"	f
+malloc_pfn_t	hook.c	/^typedef void* (*malloc_pfn_t)(size_t size);$/;"	t	file:
