@@ -1,16 +1,18 @@
 #define _GNU_SOURCE
+
 #include <dlfcn.h>
 #include <netinet/in.h>
 #include <sys/epoll.h>
+#include <fcntl.h>
 #include "event.h"
 #include "inner_fd.h"
+#include "sys_hook.h"
+#include "task.h"
 #include "thread_env.h"
-#include "defines.h"
 
 typedef int (*socket_pfn_t)(int domain, int type, int protocol);
 typedef int (*connect_pfn_t)(int sockfd, const struct sockaddr *address, socklen_t address_len);
 typedef int (*accept_pfn_t)(int sockfd, struct sockaddr *address, socklen_t *address_len);
-
 typedef int (*read_pfn_t)(int fd, void *buffer, size_t n);
 typedef int (*write_pfn_t)(int fd, const void *buffer, size_t n);
 typedef int (*close_pfn_t)(int fd);
@@ -40,7 +42,7 @@ int connect(int sockfd, const struct sockaddr *address, socklen_t address_len) {
     HOOK_SYS_CALL(connect);
     if(!co_hooked()) return hook_connect_pfn(sockfd, address, address_len);
     inner_fd *isfd = get_inner_fd(sockfd);
-    if(!isfd || (O_NONBLOCK & isfd->flags)) return hook_connect_pfn(sockfd, address, address_len);
+    if(!isfd || !(O_NONBLOCK & isfd->flags)) return hook_connect_pfn(sockfd, address, address_len);
     int events = EPOLLOUT | EPOLLRDHUP | EPOLLERR;
     int ret = poll(get_thread_epoll(), sockfd, events);
     if(ret != 0) {
@@ -54,7 +56,7 @@ int accept(int sockfd, struct sockaddr *address, socklen_t *address_len) {
     HOOK_SYS_CALL(accept);
     if(!co_hooked()) return hook_accept_pfn(sockfd, address, address_len);
     inner_fd *isfd = get_inner_fd(sockfd);
-    if(!isfd || (O_NONBLOCK & isfd->flags)) return hook_accept_pfn(sockfd, address, address_len);
+    if(!isfd || !(O_NONBLOCK & isfd->flags)) return hook_accept_pfn(sockfd, address, address_len);
     int events = EPOLLIN | EPOLLRDHUP | EPOLLERR;
     int ret = poll(get_thread_epoll(), sockfd, events);
     if(ret != 0) {
@@ -68,7 +70,8 @@ int read(int fd, void *buffer, size_t n) {
     HOOK_SYS_CALL(read);
     if(!co_hooked()) return hook_read_pfn(fd, buffer, n);
     inner_fd *ifd = get_inner_fd(fd);
-    if(!ifd || (O_NONBLOCK & ifd->flags)) return hook_read_pfn(fd, buffer, n);
+    if(!ifd || !(O_NONBLOCK & ifd->flags)) return hook_read_pfn(fd, buffer, n);
+    DBG_LOG("co hook read\n");
     int events = EPOLLIN | EPOLLRDHUP | EPOLLERR;
     int ret = poll(get_thread_epoll(), fd, events);
     if (ret != 0) {
@@ -82,7 +85,7 @@ int write(int fd, const void *buffer, size_t n) {
     HOOK_SYS_CALL(write);
     if(!co_hooked()) return hook_write_pfn(fd, buffer, n);
     inner_fd *ifd = get_inner_fd(fd);
-    if(!ifd || (O_NONBLOCK & ifd->flags)) return hook_write_pfn(fd, buffer, n);
+    if(!ifd || !(O_NONBLOCK & ifd->flags)) return hook_write_pfn(fd, buffer, n);
     int events = EPOLLOUT | EPOLLRDHUP | EPOLLERR;
     int ret = poll(get_thread_epoll(), fd, events);
     if (ret != 0) {

@@ -1,14 +1,15 @@
 #ifndef INNER_FD_H_
 #define INNER_FD_H_
 
-#include "defines.h"
+#include "task.h"
 #include "list.h"
+#include "types.h"
 
 struct _inner_fd_st {
     int fd;
     int flags;
     task_t* task; //only set it when read / write fd
-    list_t link;
+    list_t link; //time wheel
     int timeout;
     bool betimeout;
 };

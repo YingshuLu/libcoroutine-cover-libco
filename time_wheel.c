@@ -41,7 +41,7 @@ void wheel_update_element(time_wheel_t *tw, list_t *elm, int timeout) {
     if(timeout < 0) return;
     int tv = (tw->loc + timeout + 1) % tw->size;
     wheel_delete_element(elm);
-    list_add(&(tw->wheel[tw->loc]), elm);
+    list_add(&(tw->wheel[tv]), elm);
 }
 
 void wheel_delete_element(list_t *elm) {

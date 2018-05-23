@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 
-#ifndef DBG_LOG
+#ifdef CO_DEBUG
 #define DBG_LOG printf
+#else
+#define DBG_LOG //
 #endif
 
 typedef enum {
@@ -40,5 +42,6 @@ void* coroutine_get_specific(int key);
 scheduler* current_scheduler();
 scheduler* create_scheduler(size_t cocap, size_t stack_count, size_t stack_size);
 void free_scheduler(scheduler* s);
+void scheduler_after(coroutine *t1, coroutine *t2);
 
 #endif

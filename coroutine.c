@@ -5,9 +5,10 @@
 #include <assert.h>
 #include "coroutine.h"
 #include "stack_pool.h"
+#include "list.h"
 
 #ifndef SET_COROUTINE_STACK_SIZE
-#define COROUTINE_STACK_SIZE  128 * 1024
+#define COROUTINE_STACK_SIZE  64 * 1024
 #else
 #define COROUTINE_STACK_SIZE SET_COROUTINE_STACK_SIZE
 #endif
@@ -28,6 +29,8 @@
 //coroutine max call stack depth
 #define SCHEDULER_COROUTINE_MAX_SIZE 1024
 #define COROUTINE_SPECIFIC_CAPCITY 128
+
+#define list_to_coroutine(ls) list_to_struct(ls, coroutine, call_link);
 
 __thread scheduler* g_scheduler = NULL;
 
@@ -56,14 +59,13 @@ struct _coroutine {
     volatile int hook;
     char inner;
 
+    list_t call_link;
 };
 
 struct _scheduler {
     stack_pool_st* spool;
-    coroutine** co_array;
-    size_t co_capcity;
-    size_t co_size;
     coroutine* co_main;
+    list_t call_list;
 };
 
 void save_coroutine_stack(coroutine*);
@@ -82,13 +84,13 @@ int coroutine_hooked(coroutine *c) {
 }
 
 void coroutine_set_callback(coroutine *c, cocb_t cb) {
-    if(c && cb) c->cb = cb;
+    if(c) c->cb = cb;
 }
 
 int coroutine_create_specific_key() {
     coroutine* curr = current_coroutine();
     if(!curr->spec) {
-        curr->spec = malloc(sizeof(void*) * COROUTINE_SPECIFIC_CAPCITY);
+        curr->spec = (void **)malloc(sizeof(void*) * COROUTINE_SPECIFIC_CAPCITY);
         curr->spec_size = 0;
     }
     if(curr->spec_size < COROUTINE_SPECIFIC_CAPCITY) return (curr->spec_size)++;
@@ -114,8 +116,8 @@ scheduler* current_scheduler() {
 }
 
 coroutine* current_coroutine() {
-    assert(current_scheduler()->co_size > 0);
-    return current_scheduler()->co_array[current_scheduler()->co_size - 1];
+    //assert(!list_empty(&(current_scheduler()->call_list)));
+    return list_to_coroutine(g_scheduler->call_list.prev);
 }
 
 coroutine* main_coroutine() {
@@ -125,7 +127,7 @@ coroutine* main_coroutine() {
 coroutine* previous_coroutine() {
     coroutine* curr = current_coroutine();
     if(main_coroutine() == curr || !curr) return NULL;
-    return current_scheduler()->co_array[current_scheduler()->co_size - 2];
+    return list_to_coroutine(curr->call_link.prev);
 }
 
 //make sure coroutine has been dead before free it
@@ -135,6 +137,7 @@ void free_coroutine(coroutine* c) {
     //give up stack owner 
     c->stack->occupy = NULL;
     c->stack->shared = 1;
+    if(!list_empty(&(c->call_link))) list_delete(&(c->call_link));
     free(c->snapshot);
     free(c);
 }
@@ -144,16 +147,22 @@ void free_scheduler(scheduler* s) {
     if(!s) return;
     free_coroutine(s->co_main);
     free_stack_pool(s->spool);
-    free(s->co_array);
 }
 
 void push_coroutine(coroutine* c) {
-    assert(g_scheduler->co_size <= g_scheduler->co_capcity);
-    if(c) g_scheduler->co_array[g_scheduler->co_size++] = c;
+    if(c) {
+        if(!list_empty(&(c->call_link))) list_delete(&(c->call_link));
+        list_add_before(&(g_scheduler->call_list), &(c->call_link));
+    }
 }
 
 coroutine* pop_coroutine() {
-    if(g_scheduler->co_size > 1) return g_scheduler->co_array[--(g_scheduler->co_size)];
+    //can not pop co_main
+    if(list_next(g_scheduler->call_list.next) != &(g_scheduler->call_list)) {
+      coroutine* c = list_to_coroutine(g_scheduler->call_list.prev);
+      list_delete(&(c->call_link));
+      return c;
+    }
     return NULL;
 }
 
@@ -171,6 +180,7 @@ void _co_inner_func(void) {
 
 coroutine* create_coroutine(scheduler* shed, cofunc_t f, void* ip, void* op) {
     coroutine* c = (coroutine*) malloc(sizeof(coroutine));
+    list_init(&(c->call_link));
     return reset_coroutine(shed, c, f, ip, op);
 }
 
@@ -195,13 +205,15 @@ coroutine* reset_coroutine(scheduler* shed, coroutine* c, cofunc_t f, void* ip, 
 
     c->stack = NULL;
     if(shed) c->stack = alloc_stack(shed->spool);
-    DBG_LOG("coroutine: %p, stack: %p\n", c, c->stack);
+    //DBG_LOG("coroutine: %p, stack: %p\n", c, c->stack);
     c->stack_sp = NULL;
 
     c->inner = 0;
     c->hook = 0;
 
-    if(!c->spec) c->spec_size = 0;
+    //reset coroutine specific
+    if(c->spec) c->spec_size = 0;
+    if(!list_empty(&(c->call_link))) list_delete(&(c->call_link));
     return c;
 }
 
@@ -209,20 +221,16 @@ scheduler* create_scheduler(size_t cocap, size_t stack_count, size_t stack_size)
     if(g_scheduler) return g_scheduler;
 
     g_scheduler = (scheduler*) malloc(sizeof(scheduler));
-    bzero(g_scheduler, sizeof(g_scheduler));
-    
-    g_scheduler->co_array = (coroutine**) malloc(sizeof(coroutine*) * cocap);
-    g_scheduler->co_capcity = cocap;
-    g_scheduler->co_size = 0;
-
     g_scheduler->spool = create_stack_pool(SCHEDULER_STACK_POOL_MODE, stack_count, stack_size);
 
     //main coroutine use ioslate stack memory
     coroutine* co_main = create_coroutine(NULL, NULL, NULL, NULL);
     co_main->stack = alloc_isolate_stack(g_scheduler->spool, 1);
-
     g_scheduler->co_main = co_main;
+
+    list_init(&(g_scheduler->call_list));
     push_coroutine(co_main);
+        
     return g_scheduler;
 }
 
@@ -231,7 +239,8 @@ void save_coroutine_stack(coroutine* c) {
     if(c->snapshot_capcity < (c->stack->stack_bp - c->stack_sp) || !c->snapshot) {
         free(c->snapshot);
         //expand 2 times capcity
-        c->snapshot_capcity = 2*(c->stack->stack_bp - c->stack_sp);
+        c->snapshot_capcity = 2 * (c->stack->stack_bp - c->stack_sp);
+        assert(c->snapshot_capcity < COROUTINE_STACK_SIZE);
         c->snapshot = (char*) malloc(c->snapshot_capcity);
     }
     c->snapshot_size = c->stack->stack_bp - c->stack_sp;
@@ -359,12 +368,21 @@ void coroutine_die() {
     //give up stack owner 
     curr->stack->occupy = NULL;
     curr->stack->shared = 1;
+    if(!list_empty(&(curr->call_link))) list_delete(&(curr->call_link));
 
 #ifdef AUTO_FREE_COROUTINE
+    DBG_LOG("atuo free coroutine\n");
     free_coroutine(curr);
 #else
     //only free inner coroutine
     if(curr->inner) free_coroutine(curr);
 #endif
     setcontext(&pendding->context);
+}
+
+void scheduler_after(coroutine *t1, coroutine *t2) {
+    if(!t1 || !t2) return;
+    list_delete(&(t2->call_link));
+    if(!list_empty(&(t1->call_link))) list_add_before(&(t1->call_link), &(t2->call_link));
+    else coroutine_resume(t2);
 }

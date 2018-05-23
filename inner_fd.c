@@ -1,7 +1,8 @@
 #include <sys/time.h>
 #include <unistd.h>
+#include <errno.h>
 #include "inner_fd.h"
-#include "defines.h"
+#include "task.h"
 #include "list.h"
 
 #define INVALID_FD -1
@@ -21,6 +22,7 @@ inner_fd* new_inner_fd(int fd) {
     ifd->task = NULL;
     ifd->timeout = 1;
     ifd->betimeout = false;
+    list_init(&(ifd->link));
     g_inner_fd_list[fd] = ifd;
     return ifd; 
 }

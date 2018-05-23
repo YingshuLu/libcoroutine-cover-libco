@@ -15,8 +15,10 @@ typedef struct  {
 } stack_array_st;
 
 struct _stack_pool_st {
+    union {
     stack_array_st* sh_array;
     stack_list_st* sh_list;
+    };
     stack_list_st* is_list;
     pool_mode_t mode;
 };
@@ -132,15 +134,15 @@ stack_pool_st* create_stack_pool(pool_mode_t mode, size_t count, size_t stack_si
         case STACK_POOL_ON_LIST:
             pool->sh_list = create_stack_list(count, stack_size);
             printf("create stack list: %p\n", pool->sh_list);
-            pool->sh_array = NULL;
+            //pool->sh_array = NULL;
             pool->mode = mode;
             break;
 
         case STACK_POOL_ON_ARRAY:
-            pool->mode = mode;
         default:
+            pool->mode = STACK_POOL_ON_ARRAY;
             pool->sh_array = create_stack_array(count, stack_size);
-            pool->sh_list = NULL;
+            //pool->sh_list = NULL;
     }
 
     return pool;
@@ -187,7 +189,7 @@ stack_st* alloc_stack(stack_pool_st* pool) {
 void free_stack_pool(stack_pool_st* pool) {
     if(!pool) return;
 
-    free_stack_array(pool->sh_array);
-    free_stack_list(pool->sh_list);
+    if(pool->mode == STACK_POOL_ON_ARRAY) free_stack_array(pool->sh_array);
+    else free_stack_list(pool->sh_list);
     free_stack_list(pool->is_list);
 }

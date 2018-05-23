@@ -1,11 +1,14 @@
 #include <sys/epoll.h>
 #include <assert.h>
 #include <unistd.h>
-#include "defines.h"
+#include <errno.h>
+#include <fcntl.h>
+#include "task.h"
 #include "inner_fd.h"
 #include "event.h"
 #include "time_wheel.h"
 #include "list.h"
+#include "sys_hook.h"
 
 struct _epoll_st { 
     size_t maxevents;
@@ -24,6 +27,8 @@ void _timeout_task(void *ip, void *op) {
     char *buf[8] = {0};
     int ret = 0;
 
+    co_enable_hook();
+
     while(1) {
         ret = read(tw->fd, buf, buf_size);
         //error, disable timer
@@ -33,7 +38,6 @@ void _timeout_task(void *ip, void *op) {
             break;
         }
         
-        wheel_rotate(ep->timer);
         list_t *timeout_list = wheel_timeout_list(ep->timer);
         list_t *ls = list_next(timeout_list);
         list_t *next = NULL;
@@ -124,8 +128,9 @@ int poll(epoll_t* ep, int fd, int events) {
         dperror(-1);
         return -1;
     }
+
     if(ifd->betimeout) {
-        warnf("fd timeout\n");   
+        DBG_LOG("fd: %d timeout\n", ifd->fd);   
         return -1;
     }
     return 0;
@@ -151,7 +156,11 @@ int event_loop(epoll_t *ep) {
                 goto EVENT_ERROR;
                 break;
 
+            case 0:
+                break;
+
             default: {
+               DBG_LOG("epoll wait %d event(s)\n", num);
                for(i = 0; i < num; i++) {
                  ifd = get_inner_fd(ep->events[i].data.fd);
                  if(!ifd->betimeout) wheel_update_element(ep->timer, &(ifd->link), ifd->timeout);
@@ -161,8 +170,10 @@ int event_loop(epoll_t *ep) {
             }
         }
     }
-    
+
+    if(!(ep->loop)) return 0;
 EVENT_ERROR:
+    dperror(-1);
     return -1;
 
 }

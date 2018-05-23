@@ -1,6 +1,7 @@
 #ifndef EVENT_H_
 #define EVENT_H_
 
+#include <stddef.h>
 typedef struct _epoll_st epoll_t;
 
 epoll_t* new_epoll(size_t maxevents, int timeout);
