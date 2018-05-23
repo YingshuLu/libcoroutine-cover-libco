@@ -14,8 +14,8 @@ typedef struct _co_lock colock_t;
 void colock_init(colock_t *lock) {
     if(!lock) return;
     lock->locked = false;
-    queue_init(&(lock->que));
     lock->owner = NULL;
+    queue_init(&(lock->que));
 }
 
 void colock_destory(colock_t *lock) {
@@ -41,7 +41,7 @@ int co_lock(colock_t *lock) {
 }
 
 int co_unlock(colock_t *lock) {
-    if(co_self() != lock->owner || !lock->locked) return -1;
+    if(!lock || co_self() != lock->owner || !lock->locked) return -1;
     lock->locked = false;
     lock->owner = NULL;
     if(!queue_empty(&(lock->que))) {

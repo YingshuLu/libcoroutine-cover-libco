@@ -1,7 +1,6 @@
 #ifndef THREAD_ENV_H_
 #define THREAD_ENV_H_
 
-#include "types.h"
 #include "event.h"
 
 #define MAX_EVENTS_SIZE 10240
