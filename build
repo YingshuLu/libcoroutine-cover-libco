@@ -1,3 +1,0 @@
-#!/bin/bash
-gcc -g -D AUTO_FREE_COROUTINE -o test main.c coroutine.c stack_pool.c -I./
-
