@@ -12,16 +12,25 @@ void foo(void* ip, void* op) {
     printf("[%p] first enter coroutine\n", co_self());
     int key1 = co_alloc_key();
     int key2 = co_alloc_key();
+    int key3 = co_alloc_key();
     int* v = malloc(sizeof(int));
     *v = 24;
-    
+    int* v1 = malloc(sizeof(int));
+    *v1 = 129;
+
+    int* v2 = malloc(sizeof(int));
+    *v2 = 256;
+
+
     co_set_value(key1, v);
-    co_set_value(key2, v);
+    co_set_value(key2, v1);
+    co_set_value(key3, v2);
     co_yield();
     printf("[%p] second enter coroutine\n", co_self());
     int* p = co_get_value(key1);
     printf("get key/value: %d:%d\n", key1, *p);
     printf("get key/value: %d:%d\n", key2, *((int *)co_get_value(key2)));
+    printf("get key/value: %d:%d\n", key3, *((int *)co_get_value(key3)));
     
     task_t* tp = new_task(too, NULL, NULL, NULL);
     co_resume(tp);

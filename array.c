@@ -2,11 +2,6 @@
 #include "array.h"
 
 #define MIN_ARRAY_CAPCITY 16
-struct _array_st {
-    void **vector;
-    size_t size;
-    size_t capcity;
-};
 
 int array_init(array_t* array) {
     if(!array) return -1;
@@ -58,19 +53,11 @@ int array_insert(array_t *array, size_t idx, void *elm) {
     }
 
     array->vector[idx] = elm;
-    array->size++;
+    if(idx == array->size) (array->size)++;
     return 0;
 }
 
 int array_put(array_t *array, void *elm) {
-    /*
-    if(!array) return -1;
-    if(!array->vector || array->capcity <= array->size) {
-        realloc_array(array);
-    }
-    array->vector[array->size++] = elm;
-    */
-
     if(!array) return -1; 
     return array_insert(array, array_size(array), elm);
 }

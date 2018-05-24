@@ -2,6 +2,14 @@
 #define LIB_ARRAY_H_
 
 #include <stdlib.h>
+
+struct _array_st {
+    void **vector;
+    size_t size;
+    size_t capcity;
+};
+
+
 typedef struct _array_st array_t;
 
 int array_init(array_t *array);
