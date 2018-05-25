@@ -89,13 +89,13 @@ void give_up_stack(coroutine *c) {
 int coroutine_create_specific_key() {
     coroutine* curr = current_coroutine();
     int idx = array_size(&(curr->specs));
-    coroutine_set_specific(idx, NULL);
+    array_insert(&(curr->specs), idx, NULL);
     return idx;
 }
 
 int coroutine_set_specific(int key, void* value) {
     coroutine* curr = current_coroutine();
-    return array_insert(&(curr->specs), key, value);
+    return array_put(&(curr->specs), key, value);
 }
 
 void* coroutine_get_specific(int key) {

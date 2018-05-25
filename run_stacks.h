@@ -18,7 +18,6 @@ struct _stack_st{
     size_t size;
     char* stack_bp;
     coroutine* occupy;
-    struct _stack_st* next;
     list_t link;
     char shared;
 };

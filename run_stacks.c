@@ -30,7 +30,6 @@ stack_st* create_stack(size_t size) {
     stk->size = size;
     stk->stack_bp = stk->buffer + stk->size - 1;
     stk->occupy = NULL;
-    stk->next = NULL;
     stk->shared = 0;
     list_init(&(stk->link));
     return stk;
@@ -46,7 +45,7 @@ int init_stack_array(array_t *array, size_t count, size_t st_size) {
     if(!count || !st_size) return -1;
     int i = 0;
     for(; i < count; i++)
-        array_put(array, create_stack(st_size));
+        array_insert(array, i, create_stack(st_size));
     return 0;
 }
 

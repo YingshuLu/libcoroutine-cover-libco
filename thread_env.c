@@ -14,7 +14,7 @@ epoll_t *init_thread_env() {
     return g_epoll;
 }
 
-epoll_t* get_thread_epoll() {
+epoll_t* current_thread_epoll() {
    if(!g_epoll) g_epoll = init_thread_env();
    return g_epoll;
 }
@@ -22,7 +22,7 @@ epoll_t* get_thread_epoll() {
 //should call in main co-task
 void destory_thread_env() {
    close_all_inner_fd();
-   if(g_epoll) delete_epoll(get_thread_epoll());
+   if(g_epoll) delete_epoll(current_thread_epoll());
    co_env_destory();
 }
 

@@ -7,8 +7,7 @@
 #define EPOLL_WAIT_TIMEOUT 60*1000 
 
 epoll_t *init_thread_env();
-epoll_t* get_thread_epoll();
-//should call in main co-task
+epoll_t* current_thread_epoll();
 void destory_thread_env();
   
 #endif

@@ -38,7 +38,7 @@ int main() {
     co_resume(t);
     co_resume(t);
 
-    event_loop(get_thread_epoll());
+    event_loop(current_thread_epoll());
     destory_thread_env();
     delete_task_pool(g_pool);
     return 0;

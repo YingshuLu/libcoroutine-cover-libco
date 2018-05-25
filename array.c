@@ -53,13 +53,14 @@ int array_insert(array_t *array, size_t idx, void *elm) {
     }
 
     array->vector[idx] = elm;
-    if(idx == array->size) (array->size)++;
+    (array->size)++;
     return 0;
 }
 
-int array_put(array_t *array, void *elm) {
-    if(!array) return -1; 
-    return array_insert(array, array_size(array), elm);
+int array_put(array_t *array, size_t idx, void *elm) {
+    if(!array || !(idx < array_size(array))) return -1; 
+    array->vector[idx] = elm;
+    return 0;
 }
 
 void* array_get(array_t *array, size_t idx) {
