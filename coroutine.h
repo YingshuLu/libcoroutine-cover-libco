@@ -30,6 +30,8 @@ void free_coroutine(coroutine* c);
 
 void coroutine_resume(coroutine* c);
 void coroutine_yield();
+int coroutine_cancel(coroutine* c);
+
 void coroutine_enable_hook(coroutine *co);
 void coroutine_disable_hook(coroutine *co); 
 int coroutine_hooked(coroutine *co);

@@ -243,12 +243,12 @@ stack_st* realloc_coroutine_stack(coroutine* c) {
     int cnt = 3;
     do {
         stk = alloc_shared_stack(shed->spool);
-        DBG_LOG("find next stack_st in pool, left count %d\n", cnt);
+    //    DBG_LOG("find next stack_st in pool, left count %d\n", cnt);
     } while(stk == curr->stack && --cnt);
 
     if( !stk || stk == curr->stack) {
         stk = alloc_isolate_stack(shed->spool, curr->stack->size);
-        DBG_LOG("create new stack_st: %p\n", stk);
+        DBG_LOG("create new stack_st: %p for coroutine: %p\n", stk, c);
     }
 
     ostk = c->stack;
@@ -351,6 +351,20 @@ void coroutine_die() {
     //only free inner coroutine
     if(curr->inner) free_coroutine(curr);
     setcontext(&pendding->context);
+}
+
+void _cancel_func(void* ip, void* op) { return; }
+
+int coroutine_cancel(coroutine* c) {
+    if(!c || c == current_scheduler()->co_main) return -1;
+    if(c == current_coroutine()) coroutine_die();
+
+    cocb_t cb = c->cb;
+    if(!reset_coroutine(current_scheduler(), c, _cancel_func, c->iparam, c->oparam)) 
+      return -1;
+    coroutine_set_callback(c, cb);
+    coroutine_resume(c);
+    return 0;
 }
 
 void scheduler_after(coroutine *t1, coroutine *t2) {

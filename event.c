@@ -160,7 +160,7 @@ int event_loop(epoll_t *ep) {
                 break;
 
             default: {
-               DBG_LOG("epoll wait %d event(s)\n", num);
+    //           DBG_LOG("epoll wait %d event(s)\n", num);
                for(i = 0; i < num; i++) {
                  ifd = get_inner_fd(ep->events[i].data.fd);
                  if(!ifd->betimeout) wheel_update_element(ep->timer, &(ifd->link), ifd->timeout);

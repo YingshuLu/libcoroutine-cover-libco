@@ -9,9 +9,10 @@ int reuse_task(task_t* tp, cofunc_t f, void* ip, void* op, cocb_t cb);
 
 #define co_self() current_coroutine()
 #define co_resume(tp) coroutine_resume(tp) 
-
-//called in coroutine
 #define co_yield()      coroutine_yield()
+#define co_cancel(tp) coroutine_cancel(tp)
+
+
 #define co_alloc_key() coroutine_create_specific_key()
 #define co_set_value(key, value) coroutine_set_specific(key, value)
 #define co_get_value(key) coroutine_get_specific(key)

@@ -106,7 +106,7 @@ task_t *get_task_from_pool(task_pool_t *pool, cofunc_t f, void *ip, void *op, co
     bool reused = false;
     if(!list_empty(ls)) {
         tn = list_to_task_node(ls);
-        DBG_LOG("reuse coroutine\n");
+        DBG_LOG("[Note] reuse coroutine\n");
         list_delete(ls);
         reused = true;
     }
@@ -114,7 +114,6 @@ task_t *get_task_from_pool(task_pool_t *pool, cofunc_t f, void *ip, void *op, co
         tn = new_task_node(); 
         DBG_LOG("new coroutine\n");
     }
-    DBG_LOG("addr callback: %p\n", cb);
 
     tn->pa[0] = (void *)pool;
     tn->pa[1] = (void *)tn;

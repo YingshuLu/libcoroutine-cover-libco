@@ -20,7 +20,7 @@ inner_fd* new_inner_fd(int fd) {
     ifd->fd = fd;
     ifd->flags = 0;
     ifd->task = NULL;
-    ifd->timeout = 1;
+    ifd->timeout = 10;
     ifd->betimeout = false;
     list_init(&(ifd->link));
     g_inner_fd_list[fd] = ifd;
