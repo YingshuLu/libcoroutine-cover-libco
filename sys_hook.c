@@ -179,19 +179,25 @@ int accept(int sockfd, struct sockaddr *address, socklen_t *address_len) {
     if(!co_hooked()) return hook_accept_pfn(sockfd, address, address_len);
     inner_fd *isfd = get_inner_fd(sockfd);
     if(!isfd || !(O_NONBLOCK & isfd->flags)) return hook_accept_pfn(sockfd, address, address_len);
-    int events = EPOLLIN | EPOLLRDHUP | EPOLLERR;
-    int ret = poll(current_thread_epoll(), sockfd, events);
-    if(ret != 0) {
-        errno = EBADF;
-        return -1;
-    }
-    
-    ret = hook_accept_pfn(sockfd, address, address_len);
-    if(ret < 0) {
-        errno = EBADF;
-        return -1;
-    }   
 
+    DBG_LOG("accept hooked\n");
+    int ret = hook_accept_pfn(sockfd, address, address_len);
+    if(ret < 0) {
+        //error
+        if(errno != EAGAIN && errno != EINPROGRESS) return ret;
+        else {
+            DBG_LOG("accept poll\n");
+            int events = EPOLLIN | EPOLLRDHUP | EPOLLERR | EPOLLET;
+            ret = poll(current_thread_epoll(), sockfd, events);
+            if(ret != 0) {
+                errno = EBADF;
+                return ret;
+            }
+            ret = hook_accept_pfn(sockfd, address, address_len);
+            //error
+            if(ret < 0) return ret;
+        }
+    }
     fcntl(ret, F_SETFL, fcntl(ret, F_GETFL) | O_NONBLOCK);
     return ret;
 }
@@ -235,7 +241,7 @@ int write(int fd, const void *buffer, size_t n) {
             errno = EBADF;
             return -1;
         }
-        ret = hook_write_pfn(fd, buffer, n);
+        ret = hook_write_pfn(fd, buffer, n - len);
         if(ret < 0 && len == 0) {
             return ret;
         }
@@ -318,7 +324,7 @@ int send(int sockfd, const void *buf, size_t n, int flags) {
             errno = EBADF;
             return -1;
         }
-        ret = hook_send_pfn(sockfd, buf, n, flags);
+        ret = hook_send_pfn(sockfd, buf, n - len, flags);
         if(ret < 0 && len == 0) {
             return ret;
         }
