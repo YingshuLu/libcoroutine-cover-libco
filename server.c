@@ -13,6 +13,7 @@
 task_pool_t *g_pool = NULL;
 
 void handler(void* ip, void *op) {
+    co_enable_hook();
     int sockfd = *((int *) ip);
     char *buf = (char *)malloc(65536);
     int ret = read(sockfd, buf, 65536);

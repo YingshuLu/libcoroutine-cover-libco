@@ -219,13 +219,30 @@ int write(int fd, const void *buffer, size_t n) {
     if(!ifd || !(O_NONBLOCK & ifd->flags)) return hook_write_pfn(fd, buffer, n);
 
     DBG_LOG("write hooked\n");
-    int events = EPOLLOUT | EPOLLRDHUP | EPOLLERR;
-    int ret = poll(current_thread_epoll(), fd, events);
-    if (ret != 0) {
-        errno = EBADF;
-        return -1;
+    int len = 0;
+    int ret = hook_write_pfn(fd, buffer, n);
+    if(ret == 0) {
+        return ret;
     }
-    return hook_write_pfn(fd, buffer, n);
+    else if(ret > 0) {
+        len += ret;
+    }
+    
+    int events = EPOLLOUT | EPOLLRDHUP | EPOLLERR;
+    while(len < n) {
+        ret = poll(current_thread_epoll(), fd, events);
+        if (ret != 0) {
+            errno = EBADF;
+            return -1;
+        }
+        ret = hook_write_pfn(fd, buffer, n);
+        if(ret < 0 && len == 0) {
+            return ret;
+        }
+        len += ret;
+    }
+
+    return len;
 }
 
 int close(int fd) {
@@ -279,18 +296,35 @@ int recvmsg(int sockfd, struct msghdr *msg, int flags) {
     return hook_recvmsg_pfn(sockfd, msg, flags);
 }
 
-int send(int sockfd, const void *buf, size_t len, int flags) {
+int send(int sockfd, const void *buf, size_t n, int flags) {
     HOOK_SYS_CALL(send);
-    if(!co_hooked()) return hook_send_pfn(sockfd, buf, len, flags);
+    if(!co_hooked()) return hook_send_pfn(sockfd, buf, n, flags);
     inner_fd *ifd = get_inner_fd(sockfd);
-    if(!ifd || !(O_NONBLOCK & ifd->flags)) return hook_send_pfn(sockfd, buf, len, flags);
-    int events = EPOLLOUT | EPOLLRDHUP | EPOLLERR;
-    int ret = poll(current_thread_epoll(), sockfd, events);
-    if (ret != 0) {
-        errno = EBADF;
-        return -1;
+    if(!ifd || !(O_NONBLOCK & ifd->flags)) return hook_send_pfn(sockfd, buf, n, flags);
+
+    int len = 0;
+    int ret = hook_send_pfn(sockfd, buf, n, flags);
+    if(ret == 0) {
+        return ret;
     }
-    return hook_send_pfn(sockfd, buf, len, flags);
+    else if(ret > 0) {
+        len += ret;
+    }
+    
+    int events = EPOLLOUT | EPOLLRDHUP | EPOLLERR;
+    while(len < n) {
+        ret = poll(current_thread_epoll(), sockfd, events);
+        if (ret != 0) {
+            errno = EBADF;
+            return -1;
+        }
+        ret = hook_send_pfn(sockfd, buf, n, flags);
+        if(ret < 0 && len == 0) {
+            return ret;
+        }
+        len += ret;
+    }
+    return len;
 }
 
 int sendto(int sockfd, const void *buf, size_t len, int flags, const struct sockaddr *dest_addr, socklen_t addrlen) {
