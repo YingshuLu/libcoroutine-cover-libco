@@ -12,7 +12,7 @@ int add_events(epoll_t *ep, int fd, int events);
 int delete_events(epoll_t *ep, int fd, int events);
 int modify_events(epoll_t *ep, int fd, int events);
 
-int poll(epoll_t* ep, int fd, int events);
+int event_poll(epoll_t* ep, int fd, int events);
 void stop_event_loop(epoll_t* ep);
 int event_loop(epoll_t *ep);
     

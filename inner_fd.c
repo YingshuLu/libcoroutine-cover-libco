@@ -21,7 +21,7 @@ inner_fd* new_inner_fd(int fd) {
     ifd->flags = 0;
     ifd->task = NULL;
     ifd->timeout = 10;
-    ifd->betimeout = false;
+    ifd->error = IENONE;
     list_init(&(ifd->link));
     g_inner_fd_list[fd] = ifd;
     return ifd; 

@@ -19,7 +19,7 @@ typedef struct  {
 struct _stack_pool_st {
     array_t sh_array;
     list_t is_list;
-    int alloc_id;
+    size_t alloc_id;
 };
 
 #define list_to_stack(ls) list_to_struct(ls, stack_st, link)

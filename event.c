@@ -43,7 +43,7 @@ void _timeout_task(void *ip, void *op) {
         list_t *next = NULL;
         while(!list_empty(ls)) {
             ifd = list_to_inner_fd(ls);
-            ifd->betimeout = true;
+            ifd->error |= IETIMEOUT;
             next = list_next(ls);
             wheel_delete_element(ls);
             ls = next;
@@ -112,7 +112,7 @@ int modify_events(epoll_t *ep, int fd, int events) {
     return cntl_events(ep, EPOLL_CTL_MOD, fd, events);
 }
 
-int poll(epoll_t* ep, int fd, int events) {
+int event_poll(epoll_t* ep, int fd, int events) {
     inner_fd* ifd = get_inner_fd(fd);
     if(!ifd) return -1;
 
@@ -121,6 +121,7 @@ int poll(epoll_t* ep, int fd, int events) {
         return -1;      
     }
 
+    ifd->error = IENONE;
     ifd->task = co_self();
     co_yield();
     
@@ -129,8 +130,26 @@ int poll(epoll_t* ep, int fd, int events) {
         return -1;
     }
 
-    if(ifd->betimeout) {
+    //error handle
+    if(ifd->error & IETIMEOUT) {
         DBG_LOG("fd: %d timeout\n", ifd->fd);   
+        errno = ETIME;
+        return -1;
+    }
+
+    if(ifd->error & IEERR) {
+        DBG_LOG("fd: %d error event\n", ifd->fd);
+        errno = ENETDOWN;
+        return -1;
+    }
+
+    if(ifd->error & IERDHUP) {
+        DBG_LOG("fd: %d RDHUP,  peer seems be closed (maybe writing half close)\n", ifd->fd);
+    }
+
+    if(ifd->error & IEHUP) {
+        errno = ENETDOWN;
+        DBG_LOG("fd: %d seems be closed\n", ifd->fd);
         return -1;
     }
     return 0;
@@ -138,6 +157,32 @@ int poll(epoll_t* ep, int fd, int events) {
 
 void stop_event_loop(epoll_t* ep) {
     if(ep) ep->loop = 0;
+}
+
+int events_to_error(int events) {
+    int error = IENONE;
+
+    if(events & EPOLLIN) {
+        error |= IEREAD;
+    }
+
+    if(events & EPOLLOUT) {
+        error |= IEWRITE;
+    }
+
+    if(events & EPOLLERR) {
+        error |= IEERR;
+    }
+    
+    if(events & EPOLLRDHUP) {
+        error |= IERDHUP;
+    }
+
+    if(events & EPOLLHUP) {
+        error |= IEHUP;
+    }
+
+    return error;
 }
 
 //should called in thread mian task
@@ -163,7 +208,8 @@ int event_loop(epoll_t *ep) {
     //           DBG_LOG("epoll wait %d event(s)\n", num);
                for(i = 0; i < num; i++) {
                  ifd = get_inner_fd(ep->events[i].data.fd);
-                 if(!ifd->betimeout) wheel_update_element(ep->timer, &(ifd->link), ifd->timeout);
+                 ifd->error |= events_to_error(ep->events[i].events);
+                 if(!(ifd->error & IETIMEOUT)) wheel_update_element(ep->timer, &(ifd->link), ifd->timeout);
                  if(ifd && ifd->task) co_resume(ifd->task);
                }
 

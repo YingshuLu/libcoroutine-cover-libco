@@ -5,13 +5,21 @@
 #include "list.h"
 #include "types.h"
 
+#define IENONE    0
+#define IETIMEOUT 1
+#define IEREAD    2
+#define IEWRITE   4
+#define IERDHUP   8
+#define IEERR    16
+#define IEHUP    32
+
 struct _inner_fd_st {
     int fd;
     int flags;
     task_t* task; //only set it when read / write fd
     list_t link; //time wheel
     int timeout;
-    bool betimeout;
+    int error;
 };
 
 typedef struct _inner_fd_st inner_fd;
