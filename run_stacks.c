@@ -3,19 +3,6 @@
 #include "list.h"
 #include "run_stacks.h"
 
-typedef struct {
-    stack_st* beg;
-    stack_st* end;
-    stack_st* cur;
-    size_t size;
-} stack_list_st;
-
-typedef struct  {
-    stack_st** sh_stacks;
-    size_t sh_size;
-    size_t alloc_id;
-} stack_array_st;
-
 struct _stack_pool_st {
     array_t sh_array;
     list_t is_list;

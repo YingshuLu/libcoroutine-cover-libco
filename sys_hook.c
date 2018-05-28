@@ -52,46 +52,46 @@ bool co_hooked() {
 }
 
 int fcntl(int fd, int cmd, ...) {
-	HOOK_SYS_CALL(fcntl);
-	if( fd < 0 ){
+    HOOK_SYS_CALL(fcntl);
+    if( fd < 0 ){
         errno = EBADF;
-		return -1;
-	}
+        return -1;  
+    }
 
-	va_list arg_list;
-	va_start( arg_list,cmd );
+    va_list arg_list;
+    va_start( arg_list,cmd );
 
-	int ret = -1;
-	inner_fd *ifd = get_inner_fd(fd);
-	switch( cmd ) {
+    int ret = -1;
+    inner_fd *ifd = get_inner_fd(fd);
+    switch( cmd ) {
         case F_DUPFD_CLOEXEC:
-		case F_DUPFD: {
-			int param = va_arg(arg_list, int);
-			ret = hook_fcntl_pfn(fd, cmd, param );
+        case F_DUPFD: {
+            int param = va_arg(arg_list, int);
+            ret = hook_fcntl_pfn(fd, cmd, param );
 
             if(ret > 0 && co_hooked() && ifd && (ifd->flags & O_NONBLOCK)) {
                 new_inner_fd(ret);
             }
-			break;
-		}
-		case F_GETFD: {
-			ret = hook_fcntl_pfn(fd, cmd);
-			break;
-		}
-		case F_SETFD: {
-			int param = va_arg(arg_list, int);
-			ret = hook_fcntl_pfn( fd, cmd, param );
-			break;
-		}
-		case F_GETFL: {
+            break;
+        }
+        case F_GETFD: {
+            ret = hook_fcntl_pfn(fd, cmd);
+            break;
+        }
+        case F_SETFD: {
+            int param = va_arg(arg_list, int);
+            ret = hook_fcntl_pfn( fd, cmd, param );
+            break;
+        }
+        case F_GETFL: {
             if(!co_hooked() || !ifd) ret = hook_fcntl_pfn(fd, cmd);
             else ret = ifd->flags;
-			break;
-		}
-		case F_SETFL: {
-			int flags = va_arg(arg_list, int);
+            break;
+        }
+        case F_SETFL: {
+            int flags = va_arg(arg_list, int);
             if(!co_hooked()) {
-			    ret = hook_fcntl_pfn(fd, cmd, flags);
+                ret = hook_fcntl_pfn(fd, cmd, flags);
                 break;
             }
 
@@ -103,37 +103,37 @@ int fcntl(int fd, int cmd, ...) {
                 ret = 0;
                 break;
             }
-			ret = hook_fcntl_pfn(fd, cmd, flags);
-			if(0 == ret && ifd) ifd->flags = flags;
-			break;
-		}
-		case F_GETOWN: {
-			ret = hook_fcntl_pfn(fd, cmd);
-			break;
-		}
-		case F_SETOWN: {
-			int param = va_arg(arg_list, int);
-			ret = hook_fcntl_pfn(fd, cmd, param);
-			break;
-		}
-		case F_GETLK: {
-			struct flock *param = va_arg(arg_list, struct flock *);
-			ret = hook_fcntl_pfn(fd, cmd, param);
-			break;
-		}
-		case F_SETLK: {
-			struct flock *param = va_arg(arg_list, struct flock *);
-			ret = hook_fcntl_pfn(fd, cmd, param);
-			break;
-		}
-		case F_SETLKW: {
-			struct flock *param = va_arg(arg_list, struct flock *);
-			ret = hook_fcntl_pfn(fd, cmd, param);
-			break;
-		}
-	}
-	va_end(arg_list);
-	return ret;
+            ret = hook_fcntl_pfn(fd, cmd, flags);
+            if(0 == ret && ifd) ifd->flags = flags;
+            break;
+        }
+        case F_GETOWN: {
+            ret = hook_fcntl_pfn(fd, cmd);
+            break;
+        }
+        case F_SETOWN: {
+            int param = va_arg(arg_list, int);
+            ret = hook_fcntl_pfn(fd, cmd, param);
+            break;
+        }
+        case F_GETLK: {
+            struct flock *param = va_arg(arg_list, struct flock *);
+            ret = hook_fcntl_pfn(fd, cmd, param);
+            break;
+        }
+        case F_SETLK: {
+            struct flock *param = va_arg(arg_list, struct flock *);
+            ret = hook_fcntl_pfn(fd, cmd, param);
+            break;
+        }
+        case F_SETLKW: {
+            struct flock *param = va_arg(arg_list, struct flock *);
+            ret = hook_fcntl_pfn(fd, cmd, param);
+            break;
+        }
+    }
+    va_end(arg_list);
+    return ret;
 }
 
 int socket(int domain, int type, int protocol) {

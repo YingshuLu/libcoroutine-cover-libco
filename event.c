@@ -33,6 +33,7 @@ void _timeout_task(void *ip, void *op) {
         ret = read(tw->fd, buf, buf_size);
         //error, disable timer
         if(ret != buf_size) {
+            DBG_LOG("timer error, now uninstall timer mod\n");
             close(tw->fd);
             dperror(ret);
             break;
